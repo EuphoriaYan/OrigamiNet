@@ -9,18 +9,18 @@ import torch.distributed as dist
 import numpy as np
 import editdistance
 from nltk.translate.bleu_score import sentence_bleu
-import horovod.torch as hvd
+# import horovod.torch as hvd
 
 from utils import Averager
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-
+'''
 def metric_sum_hvd(val, name):
     tensor = torch.tensor(val)
     avg_tensor = hvd.allreduce(tensor, name=name, average=False)
     return avg_tensor.item()
-
+'''
 
 def metric_sum_ddp(tensor, av=False):
     # rt = tensor.clone()
@@ -82,15 +82,16 @@ def validation(model, criterion, evaluation_loader, converter, opt, parO):
             tot_ED += tmped
             length_of_gt += len(gt)
             bleu += sentence_bleu([list(gt)], list(pred))
-
+    '''
     if parO.HVD:
         n_correct = metric_sum_hvd(n_correct, 'sum_n_correct')
         tot_ED = metric_sum_hvd(tot_ED, 'sum_tot_ED')
         length_of_gt = metric_sum_hvd(length_of_gt, 'sum_length_of_gt')
         norm_ED = metric_sum_hvd(norm_ED, 'sum_norm_ED')
         bleu = metric_sum_hvd(bleu, 'sum_bleu')
-
     elif parO.DDP:
+    '''
+    if parO.DDP:
         val_loss = metric_sum_ddp(valid_loss_avg.val(), av=True)
         n_correct = metric_sum_ddp(n_correct)
         tot_ED = metric_sum_ddp(tot_ED)

@@ -20,7 +20,7 @@ from torch.nn.parallel import DistributedDataParallel as pDDP
 
 from torchsummary import summary
 from torchvision.utils import save_image
-import horovod.torch as hvd
+# import horovod.torch as hvd
 import gin
 
 import numpy as np
@@ -127,11 +127,13 @@ def train(opt, AMP, WdB, train_data_path, train_data_list, test_data_path, test_
     if OnceExecWorker and WdB:
         wandb.watch(model, log="all")
 
+    '''
     if pO.HVD:
         hvd.broadcast_parameters(model.state_dict(), root_rank=0)
         hvd.broadcast_optimizer_state(optimizer, root_rank=0)
         optimizer = hvd.DistributedOptimizer(optimizer, named_parameters=model.named_parameters())
         # optimizer = hvd.DistributedOptimizer(optimizer, named_parameters=model.named_parameters(), compression=hvd.Compression.fp16)
+    '''
 
     if pO.DDP and opt.rank != 0:
         random.seed()
@@ -233,22 +235,25 @@ def train(opt, AMP, WdB, train_data_path, train_data_list, test_data_path, test_
                 else:
                     with amp.scale_loss(cost, optimizer) as scaled_loss:
                         scaled_loss.backward()
-                        if pO.HVD: optimizer.synchronize()
+                        # if pO.HVD: optimizer.synchronize()
 
                     if optimizer.step is default_optimizer_step or not btReplay:
                         replay_batch = False
                     elif maxR > 0:
                         optimizer.step()
 
-            if btReplay: amp._amp_state.loss_scalers[0]._loss_scale = mx_sc
+            if btReplay:
+                amp._amp_state.loss_scalers[0]._loss_scale = mx_sc
 
             if (i + 1) % gAcc == 0:
-
+                '''
                 if pO.HVD and AMP:
                     with optimizer.skip_synchronize():
                         optimizer.step()
                 else:
                     optimizer.step()
+                '''
+                optimizer.step()
 
                 model.zero_grad()
                 model_ema.update(model, num_updates=i / 2)
@@ -313,9 +318,11 @@ def gInit(opt):
     gin.parse_config_file(opt.gin)
     pO = parOptions(**{ginM('dist'): True})
 
+    '''
     if pO.HVD:
         hvd.init()
         torch.cuda.set_device(hvd.local_rank())
+    '''
 
     OnceExecWorker = (pO.HVD and hvd.rank() == 0) or (pO.DP)
     cudnn.benchmark = True
@@ -363,10 +370,11 @@ if __name__ == '__main__':
         rSeed(opt.manualSeed)
 
     opt.num_gpu = torch.cuda.device_count()
-
+    '''
     if pO.HVD:
         opt.world_size = hvd.size()
         opt.rank = hvd.rank()
+    '''
 
     if not pO.DDP:
         train(opt)

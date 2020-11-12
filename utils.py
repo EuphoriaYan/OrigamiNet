@@ -1,7 +1,7 @@
 import torch
 import torch.distributed as dist
 
-import horovod.torch as hvd
+# import horovod.torch as hvd
 
 from copy import deepcopy
 from collections import OrderedDict
@@ -90,9 +90,12 @@ class Metric(object):
         self.pO = parO
 
     def update(self, val):
+        '''
         if self.pO.HVD:
             self.sum += hvd.allreduce(val.detach().cpu(), name=self.name).double()
         elif self.pO.DDP:
+        '''
+        if self.pO.DDP:
             rt = val.clone()
             dist.all_reduce(rt, op=dist.ReduceOp.SUM)
             rt /= dist.get_world_size()
