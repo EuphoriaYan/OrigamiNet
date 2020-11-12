@@ -5,7 +5,7 @@ dist = 'DP'
 n_channels = 1
 o_classes = 23323
 
-GradCheck = 2
+GradCheck = 1
 
 # Parameters for get_images (ds_load.py):
 # ==============================================================================

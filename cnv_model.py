@@ -133,7 +133,7 @@ class OrigamiNet(nn.Module):
         super().__init__()
 
         self.lreszs = lreszs
-        self.Initsq = InitBlock(fup)
+        self.Initsq = InitBlock(fup, n_channels)
 
         layers = []
         isz = fup + n_channels
