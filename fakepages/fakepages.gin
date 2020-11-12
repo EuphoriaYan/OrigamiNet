@@ -31,11 +31,11 @@ train.test_data_list  = '/home/euphoria/Chinese-ancient-book-recognition-HSK/dat
 train.test_data_path  = '/home/euphoria/Chinese-ancient-book-recognition-HSK/data/book_pages_val/'
 train.charset = 'charset/charset_xl.txt'
 train.train_batch_size = 4
-train.val_batch_size   = 16
-train.workers = 0
+train.val_batch_size   = 8
+train.workers = 4
 train.lr = 0.01
 train.continue_model = ''
-train.valInterval = 100
+train.valInterval = 1000
 train.num_iter = 0
 
 
