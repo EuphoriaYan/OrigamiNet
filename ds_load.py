@@ -138,7 +138,6 @@ class myLoadDS2(Dataset):
     def __init__(self, root_path, gt_file, alph, fmin=True, mln=None):
 
         charset = set(alph.keys())
-        assert '㒊' in charset
         self.fns, self.tlbls = get_files_and_labels(root_path, gt_file, charset)
         self.alph = alph
         self.ralph = dict(zip(alph.values(), alph.keys()))
@@ -215,9 +214,13 @@ def get_files_and_labels(root_path, gt_file, charset):
     text_list = []
     for line in open(gt_file).readlines():
         img_path, gt_text = line.strip().split('\t')
+        flag = False
         for char in gt_text:
             if char not in charset:
-                continue
+                flag = True
+                break
+        if flag:
+            continue
         img_list.append(os.path.join(root_path, img_path))
         text_list.append(gt_text)
     return img_list, text_list
