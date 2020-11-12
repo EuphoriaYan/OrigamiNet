@@ -134,6 +134,33 @@ class myLoadDS(Dataset):
         return (timgs, self.tlbls[index])
 
 
+class myLoadDS2(Dataset):
+    def __init__(self, root_path, gt_file, charset='', ralph=None, fmin=True, mln=None):
+
+        self.fns, self.tlbls = get_files_and_labels(root_path, gt_file)
+
+        if ralph == None:
+            alph = get_charset(charset)
+            self.ralph = dict(zip(alph.values(), alph.keys()))
+            self.alph = alph
+        else:
+            self.ralph = ralph
+
+        if mln != None:
+            filt = [len(x) <= mln if fmin else len(x) >= mln for x in self.tlbls]
+            self.tlbls = np.asarray(self.tlbls)[filt].tolist()
+            self.fns = np.asarray(self.fns)[filt].tolist()
+
+    def __len__(self):
+        return len(self.fns)
+
+    def __getitem__(self, index):
+        timgs = get_images(self.fns[index])
+        timgs = timgs.transpose((2, 0, 1))
+
+        return (timgs, self.tlbls[index])
+
+
 def get_files(nfile, dpath):
     fnames = open(nfile, 'r').readlines()
     fnames = [dpath + x.strip() for x in fnames]
@@ -186,6 +213,16 @@ def get_labels(fnames):
     return labels
 
 
+def get_files_and_labels(root_path, gt_file):
+    img_list = []
+    text_list = []
+    for line in open(gt_file).readlines():
+        img_path, gt_text = line.strip().split('\t')
+        img_list.append(os.path.join(root_path, img_path))
+        text_list.append(gt_text)
+    return img_list, text_list
+
+
 def get_alphabet(labels):
     coll = ''.join(labels)
     unq = sorted(list(set(coll)))
@@ -193,3 +230,7 @@ def get_alphabet(labels):
     alph = dict(zip(unq, range(len(unq))))
 
     return alph
+
+
+def get_charset(charset):
+    return [s.strip() for s in open(charset).readlines()]

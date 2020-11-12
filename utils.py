@@ -105,6 +105,10 @@ class Metric(object):
 
         self.n += 1
 
+    def to(self, device):
+        self.sum = self.sum.to(device)
+        self.n = self.n.to(device)
+
     @property
     def avg(self):
         return self.sum / self.n.double()
