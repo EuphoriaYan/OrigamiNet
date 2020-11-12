@@ -5,6 +5,7 @@ import horovod.torch as hvd
 
 from copy import deepcopy
 from collections import OrderedDict
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -47,13 +48,15 @@ class CTCLabelConverter(object):
 
             char_list = []
             for i in range(l):
-                if t[i] != 0 and (not (i > 0 and t[i - 1] == t[i])) and t[i]<len(self.character):  # removing repeated characters and blank.
+                if t[i] != 0 and (not (i > 0 and t[i - 1] == t[i])) and t[i] < len(
+                        self.character):  # removing repeated characters and blank.
                     char_list.append(self.character[t[i]])
             text = ''.join(char_list)
 
             texts.append(text)
             index += l
         return texts
+
 
 class Averager(object):
     """Compute average for torch.Tensor, used for loss average."""
@@ -76,6 +79,7 @@ class Averager(object):
         if self.n_count != 0:
             res = self.sum / float(self.n_count)
         return res
+
 
 # Horovod: average metrics from distributed training.
 class Metric(object):
@@ -103,7 +107,7 @@ class Metric(object):
         return self.sum / self.n.double()
 
 
-#https://github.com/rwightman/pytorch-image-models/blob/ema-cleanup/utils.py
+# https://github.com/rwightman/pytorch-image-models/blob/ema-cleanup/utils.py
 class ModelEma:
     """ Model Exponential Moving Average
     Keep a moving average of everything in the model state_dict (parameters and buffers).
@@ -121,6 +125,7 @@ class ModelEma:
     GPU assignment and distributed training wrappers.
     I've tested with the sequence in my own train.py for torch.DataParallel, apex.DDP, and single-GPU.
     """
+
     def __init__(self, model, decay=0.9999, device='', resume=''):
         # make a copy of the model for accumulating moving average of weights
         self.ema = deepcopy(model)
@@ -136,7 +141,7 @@ class ModelEma:
             p.requires_grad_(False)
 
     def _load_checkpoint(self, checkpoint_path, mapl=None):
-        checkpoint = torch.load(checkpoint_path,map_location=mapl)
+        checkpoint = torch.load(checkpoint_path, map_location=mapl)
         assert isinstance(checkpoint, dict)
         if 'state_dict_ema' in checkpoint:
             new_state_dict = OrderedDict()

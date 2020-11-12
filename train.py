@@ -48,6 +48,7 @@ OnceExecWorker = None
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+
 def init_bn(model):
     if type(model) in [torch.nn.InstanceNorm2d, torch.nn.BatchNorm2d]:
         init.ones_(model.weight)
@@ -55,14 +56,15 @@ def init_bn(model):
 
     elif type(model) in [torch.nn.Conv2d]:
         init.kaiming_uniform_(model.weight)
-    
+
+
 def WrkSeeder(_):
     return np.random.seed((torch.initial_seed()) % (2 ** 32))
 
-@gin.configurable
-def train(opt, AMP, WdB, train_data_path, train_data_list, test_data_path, test_data_list, experiment_name, 
-            train_batch_size, val_batch_size, workers, lr, valInterval, num_iter, wdbprj, continue_model=''):
 
+@gin.configurable
+def train(opt, AMP, WdB, train_data_path, train_data_list, test_data_path, test_data_list, experiment_name,
+          train_batch_size, val_batch_size, workers, lr, valInterval, num_iter, wdbprj, continue_model=''):
     HVD3P = pO.HVD or pO.DDP
 
     os.makedirs(f'./saved_models/{experiment_name}', exist_ok=True)
@@ -70,54 +72,57 @@ def train(opt, AMP, WdB, train_data_path, train_data_list, test_data_path, test_
     if OnceExecWorker and WdB:
         wandb.init(project=wdbprj, name=experiment_name)
         wandb.config.update(opt)
-    
+
     train_dataset = ds_load.myLoadDS(train_data_list, train_data_path)
-    valid_dataset = ds_load.myLoadDS(test_data_list, test_data_path , ralph=train_dataset.ralph)
+    valid_dataset = ds_load.myLoadDS(test_data_list, test_data_path, ralph=train_dataset.ralph)
 
     if OnceExecWorker:
         print(pO)
-        print('Alphabet :',len(train_dataset.alph),train_dataset.alph)
+        print('Alphabet :', len(train_dataset.alph), train_dataset.alph)
         for d in [train_dataset, valid_dataset]:
-            print('Dataset Size :',len(d.fns))
-            print('Max LbW : ',max(list(map(len,d.tlbls))) )
-            print('#Chars : ',sum([len(x) for x in d.tlbls]))
-            print('Sample label :',d.tlbls[-1])
-            print("Dataset :", sorted(list(map(len,d.tlbls))) )
-            print('-'*80)
-    
+            print('Dataset Size :', len(d.fns))
+            print('Max LbW : ', max(list(map(len, d.tlbls))))
+            print('#Chars : ', sum([len(x) for x in d.tlbls]))
+            print('Sample label :', d.tlbls[-1])
+            print("Dataset :", sorted(list(map(len, d.tlbls))))
+            print('-' * 80)
+
     if opt.num_gpu > 1:
-        workers = workers * ( 1 if HVD3P else opt.num_gpu )
+        workers = workers * (1 if HVD3P else opt.num_gpu)
 
     if HVD3P:
-        train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, num_replicas=opt.world_size, rank=opt.rank)
-        valid_sampler = torch.utils.data.distributed.DistributedSampler(valid_dataset, num_replicas=opt.world_size, rank=opt.rank)
+        train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, num_replicas=opt.world_size,
+                                                                        rank=opt.rank)
+        valid_sampler = torch.utils.data.distributed.DistributedSampler(valid_dataset, num_replicas=opt.world_size,
+                                                                        rank=opt.rank)
 
-    train_loader  = torch.utils.data.DataLoader( train_dataset, batch_size=train_batch_size, shuffle=True if not HVD3P else False, 
-                    pin_memory = True, num_workers = int(workers),
-                    sampler = train_sampler if HVD3P else None,
-                    worker_init_fn = WrkSeeder,
-                    collate_fn = ds_load.SameTrCollate
-                )
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=train_batch_size,
+                                               shuffle=True if not HVD3P else False,
+                                               pin_memory=True, num_workers=int(workers),
+                                               sampler=train_sampler if HVD3P else None,
+                                               worker_init_fn=WrkSeeder,
+                                               collate_fn=ds_load.SameTrCollate
+                                               )
 
-    valid_loader  = torch.utils.data.DataLoader( valid_dataset, batch_size=val_batch_size , pin_memory=True, 
-                    num_workers = int(workers), sampler=valid_sampler if HVD3P else None)
-    
+    valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=val_batch_size, pin_memory=True,
+                                               num_workers=int(workers), sampler=valid_sampler if HVD3P else None)
+
     model = OrigamiNet()
     model.apply(init_bn)
     model.train()
 
-    if OnceExecWorker: import pprint;[print(k,model.lreszs[k]) for k in sorted(model.lreszs.keys())]
+    if OnceExecWorker: import pprint;[print(k, model.lreszs[k]) for k in sorted(model.lreszs.keys())]
 
-    biparams    = list(dict(filter(lambda kv: 'bias'     in kv[0], model.named_parameters())).values())
+    biparams = list(dict(filter(lambda kv: 'bias' in kv[0], model.named_parameters())).values())
     nonbiparams = list(dict(filter(lambda kv: 'bias' not in kv[0], model.named_parameters())).values())
 
     if not pO.DDP:
         model = model.to(device)
     else:
         model.cuda(opt.rank)
-    
+
     optimizer = optim.Adam(model.parameters(), lr=lr)
-    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=10**(-1/90000))
+    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=10 ** (-1 / 90000))
 
     if OnceExecWorker and WdB:
         wandb.watch(model, log="all")
@@ -127,20 +132,18 @@ def train(opt, AMP, WdB, train_data_path, train_data_list, test_data_path, test_
         hvd.broadcast_optimizer_state(optimizer, root_rank=0)
         optimizer = hvd.DistributedOptimizer(optimizer, named_parameters=model.named_parameters())
         # optimizer = hvd.DistributedOptimizer(optimizer, named_parameters=model.named_parameters(), compression=hvd.Compression.fp16)
-    
-    if pO.DDP and opt.rank!=0:
+
+    if pO.DDP and opt.rank != 0:
         random.seed()
         np.random.seed()
 
     if AMP:
-        model, optimizer = amp.initialize(model, optimizer, opt_level = "O1")
+        model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
     if pO.DP:
         model = torch.nn.DataParallel(model)
     elif pO.DDP:
-        model = pDDP(model, device_ids=[opt.rank], output_device=opt.rank,find_unused_parameters=False)
+        model = pDDP(model, device_ids=[opt.rank], output_device=opt.rank, find_unused_parameters=False)
 
-    
-    
     model_ema = ModelEma(model)
 
     if continue_model != '':
@@ -152,7 +155,7 @@ def train(opt, AMP, WdB, train_data_path, train_data_list, test_data_path, test_
 
     criterion = torch.nn.CTCLoss(reduction='none', zero_infinity=True).to(device)
     converter = CTCLabelConverter(train_dataset.ralph.values())
-    
+
     if OnceExecWorker:
         with open(f'./saved_models/{experiment_name}/opt.txt', 'a') as opt_file:
             opt_log = '------------ Options -------------\n'
@@ -164,7 +167,6 @@ def train(opt, AMP, WdB, train_data_path, train_data_list, test_data_path, test_
             opt_file.write(opt_log)
             if WdB:
                 wandb.config.gin_str = gin.operative_config_str().splitlines()
-
 
         print(optimizer)
         print(opt_log)
@@ -182,11 +184,11 @@ def train(opt, AMP, WdB, train_data_path, train_data_list, test_data_path, test_
     if HVD3P: train_sampler.set_epoch(epoch)
     titer = iter(train_loader)
 
-    while(True):
+    while (True):
         start_time = time.time()
 
         model.zero_grad()
-        train_loss = Metric(pO,'train_loss')
+        train_loss = Metric(pO, 'train_loss')
 
         for j in trange(valInterval, leave=False, desc='Training'):
 
@@ -197,23 +199,23 @@ def train(opt, AMP, WdB, train_data_path, train_data_list, test_data_path, test_
                 if HVD3P: train_sampler.set_epoch(epoch)
                 titer = iter(train_loader)
                 image_tensors, labels = next(titer)
-                
+
             image = image_tensors.to(device)
             text, length = converter.encode(labels)
             batch_size = image.size(0)
 
             replay_batch = True
             maxR = 3
-            while replay_batch and maxR>0:
+            while replay_batch and maxR > 0:
                 maxR -= 1
-                
-                preds = model(image,text).float()
+
+                preds = model(image, text).float()
                 preds_size = torch.IntTensor([preds.size(1)] * batch_size).to(device)
                 preds = preds.permute(1, 0, 2).log_softmax(2)
-                
-                if i==0 and OnceExecWorker:
-                    print('Model inp : ',image.dtype,image.size())
-                    print('CTC inp : ',preds.dtype,preds.size(),preds_size[0])
+
+                if i == 0 and OnceExecWorker:
+                    print('Model inp : ', image.dtype, image.size())
+                    print('CTC inp : ', preds.dtype, preds.size(), preds_size[0])
 
                 # To avoid ctc_loss issue, disabled cudnn for the computation of the ctc_loss
                 torch.backends.cudnn.enabled = False
@@ -235,28 +237,27 @@ def train(opt, AMP, WdB, train_data_path, train_data_list, test_data_path, test_
 
                     if optimizer.step is default_optimizer_step or not btReplay:
                         replay_batch = False
-                    elif maxR>0:
+                    elif maxR > 0:
                         optimizer.step()
-                    
-                    
+
             if btReplay: amp._amp_state.loss_scalers[0]._loss_scale = mx_sc
-            
-            if (i+1) % gAcc == 0:
+
+            if (i + 1) % gAcc == 0:
 
                 if pO.HVD and AMP:
-                    with optimizer.skip_synchronize(): 
+                    with optimizer.skip_synchronize():
                         optimizer.step()
                 else:
                     optimizer.step()
-                
-                model.zero_grad()
-                model_ema.update(model, num_updates=i/2)
 
-                if (i+1) % (gAcc*2) == 0:
+                model.zero_grad()
+                model_ema.update(model, num_updates=i / 2)
+
+                if (i + 1) % (gAcc * 2) == 0:
                     lr_scheduler.step()
-            
+
             i += 1
-            
+
         # validation part
         if True:
 
@@ -266,14 +267,13 @@ def train(opt, AMP, WdB, train_data_path, train_data_list, test_data_path, test_
             model.eval()
             with torch.no_grad():
 
-                
                 valid_loss, current_accuracy, current_norm_ED, ted, bleu, preds, labels, infer_time = validation(
                     model_ema.ema, criterion, valid_loader, converter, opt, pO)
-        
+
             model.train()
             v_time = time.time() - start_time
 
-            if OnceExecWorker:                
+            if OnceExecWorker:
                 if current_norm_ED < best_norm_ED:
                     best_norm_ED = current_norm_ED
                     checkpoint = {
@@ -285,30 +285,33 @@ def train(opt, AMP, WdB, train_data_path, train_data_list, test_data_path, test_
 
                 if ted < best_CER:
                     best_CER = ted
-                
+
                 if current_accuracy > best_accuracy:
                     best_accuracy = current_accuracy
 
-                out  = f'[{i}] Loss: {train_loss.avg:0.5f} time: ({elapsed_time:0.1f},{v_time:0.1f})'
+                out = f'[{i}] Loss: {train_loss.avg:0.5f} time: ({elapsed_time:0.1f},{v_time:0.1f})'
                 out += f' vloss: {valid_loss:0.3f}'
                 out += f' CER: {ted:0.4f} NER: {current_norm_ED:0.4f} lr: {lr_scheduler.get_lr()[0]:0.5f}'
-                out += f' bAcc: {best_accuracy:0.1f}, bNER: {best_norm_ED:0.4f}, bCER: {best_CER:0.4f}, B: {bleu*100:0.2f}'
+                out += f' bAcc: {best_accuracy:0.1f}, bNER: {best_norm_ED:0.4f}, bCER: {best_CER:0.4f}, B: {bleu * 100:0.2f}'
                 print(out)
 
-                with open(f'./saved_models/{experiment_name}/log_train.txt', 'a') as log: log.write(out + '\n')
+                with open(f'./saved_models/{experiment_name}/log_train.txt', 'a') as log:
+                    log.write(out + '\n')
 
                 if WdB:
-                    wandb.log({'lr': lr_scheduler.get_lr()[0], 'It':i, 'nED': current_norm_ED,  'B':bleu*100,
-                    'tloss':train_loss.avg, 'AnED': best_norm_ED, 'CER':ted, 'bestCER':best_CER, 'vloss':valid_loss})
+                    wandb.log({'lr': lr_scheduler.get_lr()[0], 'It': i, 'nED': current_norm_ED, 'B': bleu * 100,
+                               'tloss': train_loss.avg, 'AnED': best_norm_ED, 'CER': ted, 'bestCER': best_CER,
+                               'vloss': valid_loss})
 
         if i == num_iter:
             print('end the training')
             sys.exit()
 
+
 def gInit(opt):
     global pO, OnceExecWorker
     gin.parse_config_file(opt.gin)
-    pO = parOptions(**{ginM('dist'):True})
+    pO = parOptions(**{ginM('dist'): True})
 
     if pO.HVD:
         hvd.init()
@@ -324,10 +327,11 @@ def rSeed(sd):
     torch.manual_seed(sd)
     torch.cuda.manual_seed(sd)
 
+
 def launch_fn(rank, opt):
     global OnceExecWorker
     gInit(opt)
-    OnceExecWorker = OnceExecWorker or (pO.DDP and rank==0)
+    OnceExecWorker = OnceExecWorker or (pO.DDP and rank == 0)
     mp.set_start_method('fork', force=True)
 
     os.environ['MASTER_ADDR'] = 'localhost'
@@ -335,14 +339,15 @@ def launch_fn(rank, opt):
 
     dist.init_process_group("nccl", rank=rank, world_size=opt.num_gpu)
 
-    #to ensure identical init parameters
+    # to ensure identical init parameters
     rSeed(opt.manualSeed)
 
     torch.cuda.set_device(rank)
     opt.world_size = opt.num_gpu
-    opt.rank       = rank
+    opt.rank = rank
 
     train(opt)
+
 
 if __name__ == '__main__':
 
@@ -358,12 +363,11 @@ if __name__ == '__main__':
         rSeed(opt.manualSeed)
 
     opt.num_gpu = torch.cuda.device_count()
-    
 
     if pO.HVD:
         opt.world_size = hvd.size()
-        opt.rank       = hvd.rank()
-    
+        opt.rank = hvd.rank()
+
     if not pO.DDP:
         train(opt)
     else:

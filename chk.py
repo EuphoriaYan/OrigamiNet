@@ -65,6 +65,7 @@ def checkpoint_sequential_step(functions, segments, *inputs, **kwargs):
                 else:
                     inputs = functions[j](inputs)
             return inputs
+
         return forward
 
     if isinstance(functions, torch.nn.Sequential):
@@ -73,7 +74,7 @@ def checkpoint_sequential_step(functions, segments, *inputs, **kwargs):
     segment_size = segments
     # the last chunk has to be non-volatile
     end = -1
-    for start in range(0, len(functions)-segments, segments):
+    for start in range(0, len(functions) - segments, segments):
         end = start + segment_size - 1
         inputs = checkpoint(run_function(start, end, functions), *inputs,
                             preserve_rng_state=preserve)

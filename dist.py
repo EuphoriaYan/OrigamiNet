@@ -5,7 +5,7 @@ import scipy.misc
 import skimage
 from skimage import exposure
 import matplotlib.pyplot as plt
-import os,sys
+import os, sys
 from collections import namedtuple
 from random import shuffle
 import itertools
@@ -20,9 +20,10 @@ from math import floor, ceil
 import random
 
 try:
-   import cPickle as pickle
+    import cPickle as pickle
 except:
-   import pickle
+    import pickle
+
 
 # Based on Elastic distortions in
 # https://github.com/mdbloice/Augmentor/blob/master/Augmentor/Operations.py
@@ -49,7 +50,7 @@ class Distort3():
         height_of_last_square = h - (height_of_square * (vertical_tiles - 1))
 
         dimensions = []
-        shift = [[(0,0) for x in range(horizontal_tiles)] for y in range(vertical_tiles)]
+        shift = [[(0, 0) for x in range(horizontal_tiles)] for y in range(vertical_tiles)]
 
         for vertical_tile in range(vertical_tiles):
             for horizontal_tile in range(horizontal_tiles):
@@ -74,17 +75,17 @@ class Distort3():
                                        width_of_square + (horizontal_tile * width_of_square),
                                        height_of_square + (height_of_square * vertical_tile)])
 
-                sm_h = min( self.xmagnitude, width_of_square  - (min_h_sep+shift[vertical_tile][horizontal_tile-1][0])  ) if horizontal_tile>0 else self.xmagnitude
-                sm_v = min( self.ymagnitude, height_of_square - (min_v_sep+shift[vertical_tile-1][horizontal_tile][1])  ) if vertical_tile>0   else self.ymagnitude
+                sm_h = min(self.xmagnitude, width_of_square - (min_h_sep + shift[vertical_tile][horizontal_tile - 1][
+                    0])) if horizontal_tile > 0 else self.xmagnitude
+                sm_v = min(self.ymagnitude, height_of_square - (min_v_sep + shift[vertical_tile - 1][horizontal_tile][
+                    1])) if vertical_tile > 0 else self.ymagnitude
 
                 dx = random.randint(-sm_h, self.xmagnitude)
                 dy = random.randint(-sm_v, self.ymagnitude)
-                shift[vertical_tile][horizontal_tile] = (dx,dy)
-
+                shift[vertical_tile][horizontal_tile] = (dx, dy)
 
         shift = list(itertools.chain.from_iterable(shift))
 
-        
         last_column = []
         for i in range(vertical_tiles):
             last_column.append((horizontal_tiles - 1) + horizontal_tiles * i)
@@ -100,8 +101,7 @@ class Distort3():
             if i not in last_row and i not in last_column:
                 polygon_indices.append([i, i + 1, i + horizontal_tiles, i + 1 + horizontal_tiles])
 
-        for id,(a, b, c, d) in enumerate(polygon_indices):
-        
+        for id, (a, b, c, d) in enumerate(polygon_indices):
             dx = shift[id][0]
             dy = shift[id][1]
 
@@ -140,41 +140,41 @@ class Distort3():
 
 
 def aug_ED2(imgs, w, h, n_ch, tst=False):
-
     d = Distort3(1.0, 10, 10, 0, 25, [w, h], 1, 1)
 
-    for i in range(len(imgs)):        
+    for i in range(len(imgs)):
         res = d.perform_operation(Image.fromarray(np.squeeze((imgs[i] * 255).astype(np.uint8))))
         imgs[i] = np.reshape(res, [h, w, n_ch])
 
     return np.squeeze(imgs)
 
 
-def RndTform(img,val=125 * 1.5):
+def RndTform(img, val=125 * 1.5):
+    Ih, Iw = img[0].shape[:2]
 
-    Ih,Iw = img[0].shape[:2]
+    sgn = torch.randint(0, 2, (1,)).item() * 2 - 1
 
-    sgn = torch.randint(0,2,(1,)).item() * 2 - 1
-
-    if sgn>0:
+    if sgn > 0:
         dw = val
         dh = 0
     else:
         dw = 0
         dh = val
 
-    def rd(d): return torch.empty(1).uniform_(-d,d).item()
-    def fd(d): return torch.empty(1).uniform_(-dw,d).item()
+    def rd(d):
+        return torch.empty(1).uniform_(-d, d).item()
+
+    def fd(d):
+        return torch.empty(1).uniform_(-dw, d).item()
 
     tl_top = rd(dh)  # Top left corner, top margin
     tl_left = fd(dw)  # Top left corner, left margin
     bl_bottom = rd(dh)  # Bottom left corner, bottom margin
     bl_left = fd(dw)  # Bottom left corner, left margin
     tr_top = rd(dh)  # Top right corner, top margin
-    tr_right = fd( min(Iw * 3/4 - tl_left,dw) )  # Top right corner, right margin
+    tr_right = fd(min(Iw * 3 / 4 - tl_left, dw))  # Top right corner, right margin
     br_bottom = rd(dh)  # Bottom right corner, bottom margin
-    br_right = fd( min(Iw * 3/4 - bl_left,dw) )  # Bottom right corner, right margin
-    
+    br_right = fd(min(Iw * 3 / 4 - bl_left, dw))  # Bottom right corner, right margin
 
     tform = stf.ProjectiveTransform()
 
@@ -184,17 +184,17 @@ def RndTform(img,val=125 * 1.5):
         (Iw - br_right, Ih - br_bottom),
         (Iw - tr_right, tr_top)
     )), np.array((
-        [0, 0 ],
-        [0, Ih - 1 ],
-        [Iw-1, Ih-1 ],
-        [Iw-1, 0]
+        [0, 0],
+        [0, Ih - 1],
+        [Iw - 1, Ih - 1],
+        [Iw - 1, 0]
     )))
 
     corners = np.array([
-        [0, 0 ],
-        [0, Ih - 1 ],
-        [Iw-1, Ih-1 ],
-        [Iw-1, 0]
+        [0, 0],
+        [0, Ih - 1],
+        [Iw - 1, Ih - 1],
+        [Iw - 1, 0]
     ])
 
     corners = tform.inverse(corners)
@@ -206,28 +206,30 @@ def RndTform(img,val=125 * 1.5):
     out_rows = maxr - minr + 1
     out_cols = maxc - minc + 1
     output_shape = np.around((out_rows, out_cols))
-    
+
     translation = (minc, minr)
     tform4 = stf.SimilarityTransform(translation=translation)
     tform = tform4 + tform
     tform.params /= tform.params[2, 2]
-    
+
     ret = []
     for i in range(len(img)):
         img2 = stf.warp(img[i], tform, output_shape=output_shape, cval=1.0)
-        img2 = stf.resize(img2, (Ih,Iw), preserve_range=True).astype(np.float32)
+        img2 = stf.resize(img2, (Ih, Iw), preserve_range=True).astype(np.float32)
         ret.append(img2)
 
     return ret
 
+
 def npThum(img, max_w, max_h):
     x, y = np.shape(img)[:2]
 
-    y = min(int( y * max_h / x ),max_w)
+    y = min(int(y * max_h / x), max_w)
     x = max_h
 
-    img = np.array(Image.fromarray(img).resize((y,x)))
+    img = np.array(Image.fromarray(img).resize((y, x)))
     return img
+
 
 image_data = np.array(Image.open(sys.argv[1]))
 
@@ -236,9 +238,9 @@ image_data = skimage.img_as_float32(image_data)
 if image_data.ndim < 3:
     image_data = np.expand_dims(image_data, axis=-1)
 
-images = image_data[None,...]
+images = image_data[None, ...]
 
 images = np.array([RndTform([image], val=140)[0] for image in images])
 sh = images.shape
-images = np.array([aug_ED2(image[None,...],sh[2], sh[1], sh[3], tst=False) for image in images])
-imageio.imwrite(sys.argv[1],images[0].astype(np.uint8))
+images = np.array([aug_ED2(image[None, ...], sh[2], sh[1], sh[3], tst=False) for image in images])
+imageio.imwrite(sys.argv[1], images[0].astype(np.uint8))
