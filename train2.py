@@ -292,7 +292,7 @@ def train(opt, AMP, WdB, train_data_path, train_data_list, test_data_path, test_
 
                 out = f'[{i}] Loss: {train_loss.avg:0.5f} time: ({elapsed_time:0.1f},{v_time:0.1f})'
                 out += f' vloss: {valid_loss:0.3f}'
-                out += f' CER: {ted:0.4f} NER: {current_norm_ED:0.4f} lr: {lr_scheduler.get_lr()[0]:0.5f}'
+                out += f' CER: {ted:0.4f} NER: {current_norm_ED:0.4f} lr: {lr_scheduler.get_last_lr()[0]:0.5f}'
                 out += f' bAcc: {best_accuracy:0.1f}, bNER: {best_norm_ED:0.4f}, bCER: {best_CER:0.4f}, B: {bleu * 100:0.2f}'
                 print(out)
 
@@ -300,7 +300,7 @@ def train(opt, AMP, WdB, train_data_path, train_data_list, test_data_path, test_
                     log.write(out + '\n')
 
                 if WdB:
-                    wandb.log({'lr': lr_scheduler.get_lr()[0], 'It': i, 'nED': current_norm_ED, 'B': bleu * 100,
+                    wandb.log({'lr': lr_scheduler.get_last_lr()[0], 'It': i, 'nED': current_norm_ED, 'B': bleu * 100,
                                'tloss': train_loss.avg, 'AnED': best_norm_ED, 'CER': ted, 'bestCER': best_CER,
                                'vloss': valid_loss})
 
@@ -313,12 +313,6 @@ def gInit(opt):
     global pO, OnceExecWorker
     gin.parse_config_file(opt.gin)
     pO = parOptions(**{ginM('dist'): True})
-
-    '''
-    if pO.HVD:
-        hvd.init()
-        torch.cuda.set_device(hvd.local_rank())
-    '''
 
     OnceExecWorker = pO.DP
     cudnn.benchmark = True

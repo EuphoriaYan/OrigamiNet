@@ -97,7 +97,8 @@ class GateBlock(nn.Module):
 
     def forward(self, x):
         if self.gc >= 1:
-            y = checkpoint(customGC(self.sq), x)
+            # y = checkpoint(customGC(self.sq), x)
+            y = checkpoint(self.sq, x)
         else:
             y = self.sq(x)
 
