@@ -135,16 +135,13 @@ class myLoadDS(Dataset):
 
 
 class myLoadDS2(Dataset):
-    def __init__(self, root_path, gt_file, charset='', ralph=None, fmin=True, mln=None):
+    def __init__(self, root_path, gt_file, alph, fmin=True, mln=None):
 
-        self.fns, self.tlbls = get_files_and_labels(root_path, gt_file)
-
-        if ralph == None:
-            alph = get_charset(charset)
-            self.ralph = dict(zip(alph.values(), alph.keys()))
-            self.alph = alph
-        else:
-            self.ralph = ralph
+        charset = set(alph.keys())
+        assert '㒊' in charset
+        self.fns, self.tlbls = get_files_and_labels(root_path, gt_file, charset)
+        self.alph = alph
+        self.ralph = dict(zip(alph.values(), alph.keys()))
 
         if mln != None:
             filt = [len(x) <= mln if fmin else len(x) >= mln for x in self.tlbls]
@@ -213,11 +210,14 @@ def get_labels(fnames):
     return labels
 
 
-def get_files_and_labels(root_path, gt_file):
+def get_files_and_labels(root_path, gt_file, charset):
     img_list = []
     text_list = []
     for line in open(gt_file).readlines():
         img_path, gt_text = line.strip().split('\t')
+        for char in gt_text:
+            if char not in charset:
+                continue
         img_list.append(os.path.join(root_path, img_path))
         text_list.append(gt_text)
     return img_list, text_list
@@ -233,4 +233,6 @@ def get_alphabet(labels):
 
 
 def get_charset(charset):
-    return [s.strip() for s in open(charset).readlines()]
+    chars = open(charset, 'r', encoding='utf-8').readlines()
+    chars = [c.strip() for c in chars]
+    return dict(zip(chars, range(len(chars))))

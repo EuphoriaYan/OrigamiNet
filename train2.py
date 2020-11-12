@@ -73,12 +73,14 @@ def train(opt, AMP, WdB, train_data_path, train_data_list, test_data_path, test_
         wandb.init(project=wdbprj, name=experiment_name)
         wandb.config.update(opt)
 
-    train_dataset = ds_load.myLoadDS2(train_data_path, train_data_list, charset)
-    valid_dataset = ds_load.myLoadDS2(test_data_path, test_data_list, ralph=train_dataset.ralph)
+    alph = ds_load.get_charset(charset)
+
+    train_dataset = ds_load.myLoadDS2(train_data_path, train_data_list, alph=alph)
+    valid_dataset = ds_load.myLoadDS2(test_data_path, test_data_list, alph=alph)
 
     if OnceExecWorker:
         print(pO)
-        print('Alphabet :', len(train_dataset.alph), train_dataset.alph)
+        # print('Alphabet :', len(train_dataset.alph), train_dataset.alph)
         for d in [train_dataset, valid_dataset]:
             print('Dataset Size :', len(d.fns))
             print('Max LbW : ', max(list(map(len, d.tlbls))))

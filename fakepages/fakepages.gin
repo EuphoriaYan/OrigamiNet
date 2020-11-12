@@ -35,7 +35,7 @@ train.val_batch_size   = 1
 train.workers = 0
 train.lr = 0.01
 train.continue_model = ''
-train.valInterval = 500
+train.valInterval = 100
 train.num_iter = 0
 
 
