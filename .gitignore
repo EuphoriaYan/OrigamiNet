@@ -7,3 +7,6 @@ dataset/
 
 # output
 output/
+
+# work dir
+saved_models/
