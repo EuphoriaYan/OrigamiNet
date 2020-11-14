@@ -3,9 +3,9 @@ manualSeed = 1111
 dist = 'DP'
 
 n_channels = 1
-o_classes = 23323
+o_classes = 23324
 
-GradCheck = 1
+GradCheck = 0
 
 # Parameters for get_images (ds_load.py):
 # ==============================================================================
@@ -31,12 +31,12 @@ train.test_data_list  = '/home/euphoria/Chinese-ancient-book-recognition-HSK/dat
 train.test_data_path  = '/home/euphoria/Chinese-ancient-book-recognition-HSK/data/book_pages_val/'
 train.charset = 'charset/charset_xl.txt'
 train.train_batch_size = 4
-train.val_batch_size   = 8
+train.val_batch_size   = 4
 train.workers = 4
 train.lr = 0.01
 train.continue_model = ''
 train.valInterval = 3000
-train.num_iter = 0
+train.num_iter = 5
 
 
 # Parameters for OrigamiNet (cnv_model.py):
@@ -53,6 +53,7 @@ OrigamiNet.lszs = {0:  128,
             2:  256,
             4:  512,
             11: 256  }
+OrigamiNet.reduceAxis = 2
 
 ##resize structure##
 MaxPool2d.kernel_size = (2,2)

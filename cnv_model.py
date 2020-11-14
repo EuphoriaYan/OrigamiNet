@@ -129,7 +129,7 @@ class InitBlock(nn.Module):
 
 @gin.configurable
 class OrigamiNet(nn.Module):
-    def __init__(self, n_channels, o_classes, wmul, lreszs, lszs, nlyrs, fup, GradCheck, reduceAxis=2):
+    def __init__(self, n_channels, o_classes, wmul, lreszs, lszs, nlyrs, fup, GradCheck, reduceAxis=3):
         super().__init__()
 
         self.lreszs = lreszs

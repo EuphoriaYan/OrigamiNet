@@ -148,7 +148,8 @@ def train(opt, AMP, WdB, train_data_path, train_data_list, test_data_path, test_
     model_ema = ModelEma(model)
 
     if continue_model != '':
-        if OnceExecWorker: print(f'loading pretrained model from {continue_model}')
+        if OnceExecWorker:
+            print(f'loading pretrained model from {continue_model}')
         checkpoint = torch.load(continue_model)
         model.load_state_dict(checkpoint['model'], strict=True)
         optimizer.load_state_dict(checkpoint['optimizer'])
@@ -242,13 +243,7 @@ def train(opt, AMP, WdB, train_data_path, train_data_list, test_data_path, test_
                         optimizer.step()
 
             if (i + 1) % gAcc == 0:
-                '''
-                if pO.HVD and AMP:
-                    with optimizer.skip_synchronize():
-                        optimizer.step()
-                else:
-                    optimizer.step()
-                '''
+
                 optimizer.step()
 
                 model.zero_grad()
@@ -268,8 +263,10 @@ def train(opt, AMP, WdB, train_data_path, train_data_list, test_data_path, test_
             model.eval()
             with torch.no_grad():
 
+                # valid_loss, current_accuracy, current_norm_ED, ted, bleu, preds, labels, infer_time = validation(
+                #     model_ema.ema, criterion, valid_loader, converter, opt, pO)
                 valid_loss, current_accuracy, current_norm_ED, ted, bleu, preds, labels, infer_time = validation(
-                    model_ema.ema, criterion, valid_loader, converter, opt, pO)
+                    model, criterion, valid_loader, converter, opt, pO)
 
             model.train()
             v_time = time.time() - start_time
